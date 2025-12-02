@@ -4,6 +4,71 @@
 
 Ce module Python génère des instances de problèmes de tournées de véhicules (VRP - Vehicle Routing Problem) pour la livraison de carburants. Il crée des fichiers JSON contenant des garages, des dépôts, des stations-service, une flotte de camions et les distances entre tous les points.
 
+### Structure JSON générée (aperçu)
+
+```json
+{
+    "meta": {
+        "difficulty": "MOYEN",
+        "description": "Instance MOYEN avec flotte hétérogène."
+    },
+    "sites": {
+        "garages": [
+            { "id": "G1", "x": 12.5, "y": 44.2 },
+            { "id": "G2", "x": 78.3, "y": 23.1 }
+        ],
+        "depots": [
+            { 
+                "id": "D1", 
+                "stock_essence": 50000, 
+                "stock_gasoil": 60000, 
+                "x": 45.2, 
+                "y": 67.8 
+            }
+        ],
+        "stations": [
+            { 
+                "id": "S1_E",             // ID unique du nœud de demande
+                "station_physique": 1,    // ID du lieu physique
+                "type_produit": "Essence",
+                "demande": 1500,
+                "x": 10.1, "y": 5.5 
+            },
+            { 
+                "id": "S1_G",             // Même lieu physique que S1_E
+                "station_physique": 1,    // Partage le même ID de lieu
+                "type_produit": "Gasoil",
+                "demande": 2000,
+                "x": 10.1, "y": 5.5       // Coordonnées identiques à S1_E
+            },
+            { 
+                "id": "S2_E",             // Nouveau lieu physique
+                "station_physique": 2,
+                "type_produit": "Essence",
+                "demande": 3500,
+                "x": 88.7, "y": 12.4
+            }
+        ]
+    },
+    "flotte": [
+        { "id": "K1", "capacite": 15000, "garage_depart": "G1" },
+        { "id": "K2", "capacite": 25000, "garage_depart": "G2" },
+        { "id": "K3", "capacite": 20000, "garage_depart": "G1" }
+    ],
+    "distances": {
+        "G1": { "G2": 67.4, "D1": 15.4, "S1_E": 22.1, "S1_G": 22.1, "S2_E": 78.3 },
+        "D1": { "G1": 15.4, "G2": 45.2, "S1_E": 5.6, "S1_G": 5.6, "S2_E": 34.1 },
+        "S1_E": { "G1": 22.1, "D1": 5.6, "S1_G": 0.0, "S2_E": 79.2 }
+        // ... toutes les combinaisons de nœuds
+    }
+}
+```
+
+**Points clés:**
+- Les nœuds virtuels (`S1_E`, `S1_G`) partagent les mêmes coordonnées si issus de la même station physique
+- La matrice de distances est symétrique et complète
+- Chaque camion a une capacité spécifique et un garage de départ assigné
+
 ## Architecture du Code
 
 ### Classe `VRPInstanceGenerator`
