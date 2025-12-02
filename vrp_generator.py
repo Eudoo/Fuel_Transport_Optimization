@@ -5,216 +5,189 @@ import os
 
 class VRPInstanceGenerator:
     def __init__(self, config):
-        """
-        Initialise le générateur avec une configuration spécifique.
-        config: dict contenant les paramètres (nb_garages, nb_stations, etc.)
-        """
         self.conf = config
         self.width = config.get('grid_size', 100)
         self.height = config.get('grid_size', 100)
         self.products = ["Essence", "Gasoil"]
         
     def _generate_coords(self):
-        """Génère des coordonnées (x, y) aléatoires."""
         return {
             "x": round(random.uniform(0, self.width), 2),
             "y": round(random.uniform(0, self.height), 2)
         }
 
     def _dist(self, p1, p2):
-        """Distance Euclidienne entre deux points."""
+        """Distance Euclidienne arrondie."""
         return round(math.sqrt((p1['x'] - p2['x'])**2 + (p1['y'] - p2['y'])**2), 2)
 
-    def _build_distance_matrix(self, all_sites):
-        """
-        Construit la matrice de distances pré-calculée entre tous les sites.
-        Cette approche respecte l'énoncé : "Les distances [...] sont connues"
-        et évite les erreurs d'arrondi entre générateur et solveur.
-        """
-        n = len(all_sites)
-        matrix = [[0.0 for _ in range(n)] for _ in range(n)]
-        
-        for i in range(n):
-            for j in range(n):
-                if i != j:
-                    matrix[i][j] = self._dist(all_sites[i], all_sites[j])
-        
-        return matrix
-
     def generate(self, filename):
-        """Génère l'instance, valide la faisabilité et sauvegarde en JSON."""
         data = {
             "meta": {
                 "difficulty": self.conf['difficulty'],
-                "description": f"Instance {self.conf['difficulty']} générée aléatoirement."
+                "description": f"Instance {self.conf['difficulty']} avec flotte hétérogène."
             },
             "sites": {
                 "garages": [],
                 "depots": [],
-                "stations": [] # Ces sont les demandes clients (potentiellement multi-produits)
+                "stations": [] 
             },
             "flotte": [],
-            "distance_matrix": []
+            "distances": {} # Format dictionnaire pour lecture facile
         }
 
-        # 1. Génération des Garages
+        # ---------------------------------------------------------
+        # 1. SITES PHYSIQUES (Garages & Dépôts)
+        # ---------------------------------------------------------
         for i in range(self.conf['num_garages']):
             data["sites"]["garages"].append({
                 "id": f"G{i+1}",
                 **self._generate_coords()
             })
 
-        # 2. Génération des Stations avec support MULTI-PRODUITS
-        # Correction Point 3 : Chaque station peut demander Essence ET/OU Gasoil
-        total_demand = {"Essence": 0, "Gasoil": 0}
-        station_coords = {}  # Mémoriser les coords de chaque station physique
-        
-        for i in range(self.conf['num_stations']):
-            # Générer les coords UNE FOIS pour la station physique
-            coords = self._generate_coords()
-            station_coords[i] = coords
-            
-            # Déterminer les demandes pour cette station
-            # Chaque station a une probabilité d'avoir Essence et/ou Gasoil
-            demands = {}
-            
-            for prod in self.products:
-                # Probabilité d'avoir une demande pour ce produit : 60%
-                if random.random() < 0.6:
-                    qty = random.randint(self.conf['min_demand'], self.conf['max_demand'])
-                    demands[prod] = qty
-                    total_demand[prod] += qty
-            
-            # Si la station n'a aucune demande, lui en attribuer au moins une
-            if not demands:
-                prod = random.choice(self.products)
-                qty = random.randint(self.conf['min_demand'], self.conf['max_demand'])
-                demands[prod] = qty
-                total_demand[prod] += qty
-            
-            # Créer un nœud pour chaque demande de produit
-            # Correction Point 2 : S1_E et S1_G partagent les mêmes coordonnées
-            for prod, qty in demands.items():
-                data["sites"]["stations"].append({
-                    "id": f"S{i+1}_{prod[0]}",  # S1_E, S1_G, S2_E, etc.
-                    "station_physique": i + 1,  # Référence à la station physique
-                    "type_produit": prod,
-                    "demande": qty,
-                    **coords  # Mêmes coords pour les demandes de la même station
-                })
-
-        # 3. Génération des Dépôts et Stocks (Garantie de Faisabilité)
-        # Logique : on calcule la demande PUIS on dimensionne les stocks
-        # Cela garantit mathématiquement que Stock >= Demande
-        stock_buffer = 1.5  # 50% de marge de sécurité
-        avg_stock_per_depot_E = int((total_demand["Essence"] * stock_buffer) / self.conf['num_depots'])
-        avg_stock_per_depot_G = int((total_demand["Gasoil"] * stock_buffer) / self.conf['num_depots'])
-
         for i in range(self.conf['num_depots']):
             data["sites"]["depots"].append({
                 "id": f"D{i+1}",
-                "stock_essence": avg_stock_per_depot_E,
-                "stock_gasoil": avg_stock_per_depot_G,
+                "stock_essence": 0, "stock_gasoil": 0, # Calculé plus tard
                 **self._generate_coords()
             })
 
-        # 4. Génération de la Flotte (Garantie de Faisabilité)
-        # On s'assure que Capacité Flotte >= Demande Totale Globale
-        total_global_demand = sum(total_demand.values())
-        min_trucks_needed = math.ceil(total_global_demand / self.conf['truck_capacity'])
+        # ---------------------------------------------------------
+        # 2. STATIONS (Multi-produits + Coordonnées partagées)
+        # ---------------------------------------------------------
+        total_demand = {"Essence": 0, "Gasoil": 0}
         
-        # On ajoute des camions selon la difficulté
-        margin_trucks = self.conf.get('truck_margin', 2)
-        num_trucks = min_trucks_needed + margin_trucks
+        for i in range(self.conf['num_stations']):
+            # Coordonnées physiques uniques pour ce lieu client
+            coords = self._generate_coords()
+            
+            # Logique de probabilité
+            has_essence = random.random() < 0.6
+            has_gasoil = random.random() < 0.6
+            
+            # Sécurité : la station doit vouloir au moins un truc
+            if not has_essence and not has_gasoil:
+                if random.random() < 0.5: has_essence = True
+                else: has_gasoil = True
+            
+            # Création des nœuds virtuels
+            if has_essence:
+                qty = random.randint(self.conf['min_demand'], self.conf['max_demand'])
+                total_demand["Essence"] += qty
+                data["sites"]["stations"].append({
+                    "id": f"S{i+1}_E", 
+                    "station_physique": i+1,
+                    "type_produit": "Essence",
+                    "demande": qty,
+                    **coords
+                })
 
-        garages_ids = [g['id'] for g in data["sites"]["garages"]]
+            if has_gasoil:
+                qty = random.randint(self.conf['min_demand'], self.conf['max_demand'])
+                total_demand["Gasoil"] += qty
+                data["sites"]["stations"].append({
+                    "id": f"S{i+1}_G", 
+                    "station_physique": i+1,
+                    "type_produit": "Gasoil",
+                    "demande": qty,
+                    **coords
+                })
 
-        # Correction Point 4 : Distribution Round-Robin pour équilibrer les garages
-        for i in range(num_trucks):
-            garage_idx = i % len(garages_ids)  # Round-robin : K1->G1, K2->G2, K3->G1, ...
+        # ---------------------------------------------------------
+        # 3. STOCKS (Garantie Faisabilité)
+        # ---------------------------------------------------------
+        margin = 1.5
+        for depot in data["sites"]["depots"]:
+            depot["stock_essence"] = int((total_demand["Essence"] * margin) / self.conf['num_depots'])
+            depot["stock_gasoil"] = int((total_demand["Gasoil"] * margin) / self.conf['num_depots'])
+
+        # ---------------------------------------------------------
+        # 4. FLOTTE HÉTÉROGÈNE (Correction Majeure)
+        # ---------------------------------------------------------
+        total_global_demand = sum(total_demand.values())
+        target_capacity = total_global_demand * (1.0 + (self.conf['truck_margin'] * 0.1))
+        
+        current_cap = 0
+        k_id = 1
+        garages = data["sites"]["garages"]
+        
+        while current_cap < target_capacity:
+            # Choix aléatoire d'un type de camion (Petit, Moyen, Gros)
+            cap = random.choice(self.conf['truck_types'])
+            
+            # Round Robin pour les garages
+            g_idx = (k_id - 1) % len(garages)
+            
             data["flotte"].append({
-                "id": f"K{i+1}",
-                "capacite": self.conf['truck_capacity'],
-                "garage_depart": garages_ids[garage_idx]
+                "id": f"K{k_id}",
+                "capacite": cap,
+                "garage_depart": garages[g_idx]["id"]
             })
+            current_cap += cap
+            k_id += 1
 
-        # 5. Construction de la matrice de distances PRÉ-CALCULÉE
-        # Correction Point 1 : Respecte l'énoncé "distances sont connues"
-        all_sites = (
-            data["sites"]["garages"] + 
-            data["sites"]["depots"] + 
-            data["sites"]["stations"]
-        )
-        data["distance_matrix"] = self._build_distance_matrix(all_sites)
-
-        # Mapping des indices pour retrouver les sites dans la matrice
-        data["site_index_map"] = {
-            "garages": {g["id"]: i for i, g in enumerate(data["sites"]["garages"])},
-            "depots": {d["id"]: len(data["sites"]["garages"]) + i 
-                       for i, d in enumerate(data["sites"]["depots"])},
-            "stations": {s["id"]: len(data["sites"]["garages"]) + len(data["sites"]["depots"]) + i 
-                         for i, s in enumerate(data["sites"]["stations"])}
-        }
+        # ---------------------------------------------------------
+        # 5. MATRICE DE DISTANCES (Dictionnaire)
+        # ---------------------------------------------------------
+        all_nodes = data["sites"]["garages"] + data["sites"]["depots"] + data["sites"]["stations"]
+        
+        matrix = {}
+        for n1 in all_nodes:
+            matrix[n1["id"]] = {}
+            for n2 in all_nodes:
+                if n1["id"] == n2["id"]:
+                    dist = 0.0
+                else:
+                    dist = self._dist(n1, n2)
+                matrix[n1["id"]][n2["id"]] = dist
+        
+        data["distances"] = matrix
 
         # Sauvegarde
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         
-        print(f"[OK] Instance générée : {filename}")
-        print(f"     Demande Totale: {total_global_demand} | Capacité Flotte: {num_trucks * self.conf['truck_capacity']}")
-        print(f"     Essence: {total_demand['Essence']} | Gasoil: {total_demand['Gasoil']}")
-        print(f"     Stations physiques: {self.conf['num_stations']} | Nœuds demande: {len(data['sites']['stations'])}")
+        print(f"[OK] {filename} | Dmd: {total_global_demand} | Cap: {current_cap} | Camions: {len(data['flotte'])}")
 
-# --- CONFIGURATION DES SCENARIOS (3 Niveaux) ---
+# --- CONFIGURATION MISE A JOUR (Avec truck_types) ---
 
 scenarios = [
     {
         "difficulty": "FACILE",
-        "num_garages": 1,
-        "num_depots": 1,
-        "num_stations": 5,
-        "min_demand": 1000,
-        "max_demand": 3000,
-        "truck_capacity": 15000,
+        "num_garages": 1, "num_depots": 1, "num_stations": 5,
+        "min_demand": 1000, "max_demand": 3000,
+        "truck_types": [15000], # Un seul type pour facile
         "truck_margin": 3,
         "grid_size": 50
     },
     {
         "difficulty": "MOYEN",
-        "num_garages": 2,
-        "num_depots": 2,
-        "num_stations": 15,
-        "min_demand": 2000,
-        "max_demand": 5000,
-        "truck_capacity": 20000,
+        "num_garages": 2, "num_depots": 2, "num_stations": 15,
+        "min_demand": 2000, "max_demand": 5000,
+        "truck_types": [15000, 20000, 25000], # Mixte
         "truck_margin": 2,
         "grid_size": 100
     },
     {
         "difficulty": "DIFFICILE",
-        "num_garages": 3,
-        "num_depots": 3,
-        "num_stations": 40,
-        "min_demand": 3000,
-        "max_demand": 8000,
-        "truck_capacity": 25000,
-        "truck_margin": 0,
+        "num_garages": 3, "num_depots": 3, "num_stations": 40,
+        "min_demand": 3000, "max_demand": 8000,
+        "truck_types": [20000, 25000, 30000], # Gros camions
+        "truck_margin": 0, # Tendu
         "grid_size": 200
     }
 ]
 
-# Exécution
 if __name__ == "__main__":
-    if not os.path.exists("instances"):
-        os.makedirs("instances")
-        
-    gen_easy = VRPInstanceGenerator(scenarios[0])
-    gen_easy.generate("instances/instance_facile.json")
-
-    gen_medium = VRPInstanceGenerator(scenarios[1])
-    gen_medium.generate("instances/instance_moyen.json")
+    if not os.path.exists("instances"): os.makedirs("instances")
     
-    gen_hard = VRPInstanceGenerator(scenarios[2])
-    gen_hard.generate("instances/instance_difficile_1.json")
-    gen_hard.generate("instances/instance_difficile_2.json")
-    gen_hard.generate("instances/instance_difficile_3.json")
+    # Génération des 5 instances demandées
+    gen = VRPInstanceGenerator(scenarios[0])
+    gen.generate("instances/instance_facile.json")
+
+    gen = VRPInstanceGenerator(scenarios[1])
+    gen.generate("instances/instance_moyen.json")
+    
+    gen = VRPInstanceGenerator(scenarios[2])
+    gen.generate("instances/instance_difficile_1.json")
+    gen.generate("instances/instance_difficile_2.json")
+    gen.generate("instances/instance_difficile_3.json")
