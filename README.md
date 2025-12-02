@@ -165,10 +165,7 @@ $$\sum_{i \in S} q_i \left( \sum_{j \in V} x_{ijk} \right) \le Q_k \quad \forall
 
 #### 3.4.1 Gestion de l'ordre de passage
 
-$$u_{ik} - u_{jk} + Q_k \cdot x_{ijk} \le Q_k - q_j \quad \forall i, j \in S, \forall k \in K$$
-
 $$u_{ik} - u_{jk} + Q_k \cdot x_{ijk} \le Q_k - q_j \quad \forall\, i, j \in S, i \ne j, \forall\, k \in K$$
-
 
 *(Cette contrainte empêche les circuits fermés qui ne passent pas par le dépôt/garage)*
 
