@@ -208,22 +208,28 @@ class VRPModel:
         """
         print("Ajout des contraintes de flot...")
         
+        # Interdire les boucles (arcs i → i)
+        # x_iik = 0 pour tout i ∈ V, k ∈ K
+        for i in self.V:
+            for k in self.K:
+                self.prob += self.x[(i, i, k)] == 0, f"Pas_boucle_{i}_{k}"
+        
         # 3.1.1 - Sortie du garage
         # Chaque camion peut quitter son garage au maximum une fois
         # Σ_j x_(start_k, j, k) <= 1  pour tout k
         for k in self.K:
             start_garage = self.start_k.get(k)
             if start_garage:
-                self.prob += lpSum([self.x[(start_garage, j, k)] for j in self.V]) <= 1, f"Sortie_garage_{k}"
+                self.prob += lpSum([self.x[(start_garage, j, k)] for j in self.V if j != start_garage]) <= 1, f"Sortie_garage_{k}"
         
         # 3.1.2 - Conservation du flot
         # Pour tout nœud h (dépôt ou station), si un camion entre, il doit sortir
         # Σ_i x_(i, h, k) = Σ_j x_(h, j, k)  pour tout h ∈ D∪S, k ∈ K
         for h in self.D + self.S:
             for k in self.K:
-                # Entrées = sorties
-                self.prob += lpSum([self.x[(i, h, k)] for i in self.V]) == \
-                             lpSum([self.x[(h, j, k)] for j in self.V]), f"Conservation_flot_{h}_{k}"
+                # Entrées = sorties (en excluant les boucles)
+                self.prob += lpSum([self.x[(i, h, k)] for i in self.V if i != h]) == \
+                             lpSum([self.x[(h, j, k)] for j in self.V if j != h]), f"Conservation_flot_{h}_{k}"
         
         # 3.1.3 - Retour au garage
         # Si un camion sort de son garage, il doit retourner à un garage
@@ -232,8 +238,8 @@ class VRPModel:
             start_garage = self.start_k.get(k)
             if start_garage:
                 # Sorties du garage = retours aux garages
-                self.prob += lpSum([self.x[(i, g, k)] for g in self.G for i in self.V]) == \
-                             lpSum([self.x[(start_garage, j, k)] for j in self.V]), f"Retour_garage_{k}"
+                self.prob += lpSum([self.x[(i, g, k)] for g in self.G for i in self.V if i != g]) == \
+                             lpSum([self.x[(start_garage, j, k)] for j in self.V if j != start_garage]), f"Retour_garage_{k}"
         
         print("[OK] Contraintes de flot ajoutées\n")
     
@@ -294,6 +300,29 @@ class VRPModel:
                 for j in self.S:
                     self.prob += self.x[(start_garage, j, k)] == 0, f"Pas_direct_G_S_{k}_{j}"
         
+        # 3.2.6 - Lien entre utilisation dépôt et sortie du garage
+        # Si un camion utilise un dépôt, il doit sortir de son garage
+        # y_kd <= Σ_j x_(start_k, j, k) pour tout k ∈ K, d ∈ D
+        for k in self.K:
+            start_garage = self.start_k.get(k)
+            if start_garage:
+                for d in self.D:
+                    self.prob += (self.y[(k, d)] <= 
+                                 lpSum([self.x[(start_garage, j, k)] for j in self.V if j != start_garage])), \
+                                f"Depot_implique_sortie_garage_{k}_{d}"
+        
+        # 3.2.7 - Le camion doit aller du garage au dépôt (pas d'autre entrée dans le dépôt depuis le début)
+        # Si y_kd = 1, alors le camion doit entrer dans le dépôt depuis le garage
+        # Pour simplifier: l'entrée dans le dépôt doit venir du garage ou d'une station
+        # Mais au début de la tournée, seul le garage est possible
+        for k in self.K:
+            start_garage = self.start_k.get(k)
+            if start_garage:
+                for d in self.D:
+                    # Si le camion utilise ce dépôt, il doit y arriver depuis le garage
+                    self.prob += (self.y[(k, d)] <= self.x[(start_garage, d, k)]), \
+                                f"Garage_vers_depot_{k}_{d}"
+        
         print("[OK] Contraintes opérationnelles ajoutées\n")
     
     # =========================================================================
@@ -311,15 +340,15 @@ class VRPModel:
         print("Ajout des contraintes de demande et capacité...")
         
         # 3.3.1 - Satisfaction complète des demandes (chaque station visitée exactement une fois)
-        # Σ_k Σ_i x_ijk = 1 pour tout j ∈ S
+        # Σ_k Σ_i x_ijk = 1 pour tout j ∈ S (en excluant i=j)
         for j in self.S:
-            self.prob += (lpSum([self.x[(i, j, k)] for i in self.V for k in self.K]) == 1), \
+            self.prob += (lpSum([self.x[(i, j, k)] for i in self.V for k in self.K if i != j]) == 1), \
                         f"Satisfaction_demande_{j}"
         
         # 3.3.2 - Respect de la capacité des camions
-        # Σ_i∈S q_i * (Σ_j x_ijk) <= Q_k pour tout k
+        # Σ_i∈S q_i * (Σ_j x_ijk) <= Q_k pour tout k (en excluant i=j)
         for k in self.K:
-            self.prob += (lpSum([self.q.get(i, 0) * lpSum([self.x[(i, j, k)] for j in self.V]) 
+            self.prob += (lpSum([self.q.get(i, 0) * lpSum([self.x[(i, j, k)] for j in self.V if j != i]) 
                                 for i in self.S]) <= self.Q.get(k, 0)), f"Capacite_{k}"
         
         print("[OK] Contraintes de demande/capacité ajoutées\n")
@@ -389,7 +418,8 @@ class VRPModel:
                 charge_totale = lpSum([self.L[(k, d, p)] for d in self.D])
                 
                 # Livraison totale : somme des demandes des stations du produit p visitées par k
-                livraison_totale = lpSum([self.q.get(i, 0) * lpSum([self.x[(i, j, k)] for j in self.V])
+                # (en excluant les boucles i=j)
+                livraison_totale = lpSum([self.q.get(i, 0) * lpSum([self.x[(i, j, k)] for j in self.V if j != i])
                                          for i in self.S if self.type_i.get(i) == p])
                 
                 self.prob += charge_totale == livraison_totale, f"Conservation_charge_{k}_{p}"
@@ -467,42 +497,40 @@ class VRPModel:
         
         for k in self.K:
             # Collecter tous les arcs utilisés par ce camion
-            arcs = []
+            arcs = {}
             for i in self.V:
                 for j in self.V:
-                    if value(self.x[(i, j, k)]) and value(self.x[(i, j, k)]) > 0.5:
-                        arcs.append((i, j))
+                    if i != j and value(self.x[(i, j, k)]) and value(self.x[(i, j, k)]) > 0.5:
+                        arcs[i] = j
             
             if arcs:
                 print(f"Camion {k}:")
                 
                 # Construire la tournée à partir du garage de départ
                 start = self.start_k.get(k)
-                if start:
+                if start and start in arcs:
                     visited = [start]
                     current = start
                     total_distance = 0
-                    used_arcs = set(range(len(arcs)))
                     
-                    # Parcourir les arcs tant qu'on en trouve
-                    while used_arcs and len(visited) < len(self.V) + 5:  # Limite de sécurité
-                        found = False
-                        for idx in list(used_arcs):
-                            i, j = arcs[idx]
-                            if i == current:
-                                visited.append(j)
-                                total_distance += self.d.get((i, j), 0)
-                                current = j
-                                used_arcs.remove(idx)
-                                found = True
-                                break
+                    # Parcourir les arcs en suivant le chemin
+                    while current in arcs:
+                        next_node = arcs[current]
+                        total_distance += self.d.get((current, next_node), 0)
+                        visited.append(next_node)
+                        current = next_node
                         
-                        if not found:
-                            break  # Pas d'arc sortant, on arrête
+                        # Arrêter si on revient au garage ou si boucle infinie
+                        if current in self.G or len(visited) > len(self.V) + 2:
+                            break
                     
                     # Afficher la tournée
                     print(f"  Route: {' -> '.join(visited)}")
                     print(f"  Distance: {total_distance:.2f} km")
+                    
+                    # Stations visitées
+                    stations_visitees = [n for n in visited if n in self.S]
+                    print(f"  Stations: {stations_visitees}")
                     
                     # Afficher les produits et dépôt
                     for d in self.D:
@@ -516,6 +544,9 @@ class VRPModel:
                             print(f"  Charge: {charge:.0f} L")
                     
                     print()
+            else:
+                # Camion non utilisé
+                pass
         
         print("-"*60)
         print("FIN DE LA SOLUTION")

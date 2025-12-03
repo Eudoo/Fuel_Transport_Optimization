@@ -85,7 +85,7 @@ Ces contraintes assurent que le camion se déplace physiquement de manière logi
 
 Chaque camion $k$ peut quitter son garage de départ spécifique ($start_k$) au maximum une fois.
 
-$$\sum_{j \in V} x_{(start_k)jk} \le 1 \quad \forall k \in K$$
+$$\sum_{j \in V, j \ne start_k} x_{(start_k)jk} \le 1 \quad \forall k \in K$$
 
 *(Si la somme vaut 0, le camion n'est pas utilisé)*
 
@@ -93,15 +93,23 @@ $$\sum_{j \in V} x_{(start_k)jk} \le 1 \quad \forall k \in K$$
 
 Pour tout site (Dépôt ou Station), si un camion y entre, il doit en sortir.
 
-$$\sum_{i \in V} x_{ihk} = \sum_{j \in V} x_{hjk} \quad \forall h \in D \cup S, \forall k \in K$$
+$$\sum_{i \in V, i \ne h} x_{ihk} = \sum_{j \in V, j \ne h} x_{hjk} \quad \forall h \in D \cup S, \forall k \in K$$
 
 #### 3.1.3 Retour au Garage
 
 Si un camion est sorti de son garage, il doit finir sa tournée dans un garage (n'importe lequel parmi l'ensemble $G$).
 
-$$\sum_{g \in G} \sum_{i \in V} x_{igk} = \sum_{j \in V} x_{(start_k)jk} \quad \forall k \in K$$
+$$\sum_{g \in G} \sum_{i \in V, i \ne g} x_{igk} = \sum_{j \in V, j \ne start_k} x_{(start_k)jk} \quad \forall k \in K$$
 
 *(L'équation dit : Nombre de retours vers un garage = Nombre de sorties du garage de départ)*
+
+#### 3.1.4 Interdiction des Boucles (NEW) 🆕
+
+Un camion ne peut pas faire de boucle sur lui-même (arc d'un nœud vers lui-même).
+
+$$x_{iik} = 0 \quad \forall i \in V, \forall k \in K$$
+
+*(Cette contrainte empêche le solveur de satisfaire artificiellement les contraintes avec des arcs de distance nulle)*
 
 ---
 
@@ -141,6 +149,22 @@ Un camion ne peut pas aller directement du garage à une station (il doit charge
 
 $$x_{(start_k)jk} = 0 \quad \forall j \in S, \forall k \in K$$
 
+#### 3.2.6 Lien Utilisation Dépôt et Sortie du Garage (NEW) 🆕
+
+Si un camion utilise un dépôt, il doit obligatoirement sortir de son garage.
+
+$$y_{kd} \le \sum_{j \in V, j \ne start_k} x_{(start_k)jk} \quad \forall k \in K, \forall d \in D$$
+
+*(Cette contrainte empêche un camion d'utiliser un dépôt sans avoir quitté son garage)*
+
+#### 3.2.7 Passage Obligatoire Garage → Dépôt (NEW) 🆕
+
+Si un camion utilise un dépôt $d$, il doit y arriver directement depuis son garage de départ.
+
+$$y_{kd} \le x_{(start_k)dk} \quad \forall k \in K, \forall d \in D$$
+
+*(Cette contrainte force le camion à aller du garage au dépôt pour se charger avant de livrer)*
+
 ---
 
 ### 3.3 Contraintes de Demande et Capacité
@@ -149,15 +173,17 @@ $$x_{(start_k)jk} = 0 \quad \forall j \in S, \forall k \in K$$
 
 Chaque station (nœud client) doit être visitée exactement une fois par un seul camion.
 
-$$\sum_{k \in K} \sum_{i \in V} x_{ijk} = 1 \quad \forall j \in S$$
+$$\sum_{k \in K} \sum_{i \in V, i \ne j} x_{ijk} = 1 \quad \forall j \in S$$
+
+*(Note : On exclut $i = j$ pour éviter les boucles)*
 
 #### 3.3.2 Capacité du camion
 
 La somme des demandes des stations visitées par un camion ne doit pas dépasser sa capacité maximale $Q_k$.
 
-$$\sum_{i \in S} q_i \left( \sum_{j \in V} x_{ijk} \right) \le Q_k \quad \forall k \in K$$
+$$\sum_{i \in S} q_i \left( \sum_{j \in V, j \ne i} x_{ijk} \right) \le Q_k \quad \forall k \in K$$
 
-*(Le terme entre parenthèses vaut 1 si le camion visite la station, 0 sinon)*
+*(Le terme entre parenthèses vaut 1 si le camion visite la station, 0 sinon. On exclut $j = i$ pour éviter les boucles)*
 
 ---
 
@@ -187,9 +213,9 @@ $$\sum_{k \in K} L_{kdp} \le Stock_{dp} \quad \forall d \in D, \forall p \in P$$
 
 La quantité chargée au dépôt $d$ pour le produit $p$ par le camion $k$ ($L_{kdp}$) doit être égale à la quantité totale livrée par ce même camion $k$ pour ce même produit $p$.
 
-$$\sum_{d \in D} L_{kdp} = \sum_{i \in S, \text{type}_i=p} q_i \left( \sum_{j \in V} x_{ijk} \right) \quad \forall k \in K, \forall p \in P$$
+$$\sum_{d \in D} L_{kdp} = \sum_{i \in S, \text{type}_i=p} q_i \left( \sum_{j \in V, j \ne i} x_{ijk} \right) \quad \forall k \in K, \forall p \in P$$
 
-*(Cette contrainte assure que la somme de ce que le camion charge (LHS) est égale à la somme de ce que le camion livre (RHS))*
+*(Cette contrainte assure que la somme de ce que le camion charge (LHS) est égale à la somme de ce que le camion livre (RHS). On exclut $j = i$ pour éviter les boucles)*
 
 ---
 
