@@ -1,5 +1,6 @@
 import json
 import math
+import time as time_module
 from pulp import *
 from pathlib import Path
 
@@ -440,17 +441,23 @@ class VRPModel:
         print(f"Résolution du problème (limite: {time_limit}s)...")
         print("-" * 60)
         
+        # Mesurer le temps de résolution
+        start_time = time_module.time()
+        
         # Résoudre avec le solveur CBC et limite de temps
         self.prob.solve(PULP_CBC_CMD(timeLimit=time_limit, msg=0))
         
+        # Calculer le temps écoulé
+        self.solve_time = time_module.time() - start_time
+        
         print("-" * 60)
-        self.print_summary()
+        print(f"Statut: {LpStatus[self.prob.status]}")
+        print(f"Temps de résolution: {self.solve_time:.2f} secondes")
         print()
 
     def print_summary(self):
         """Affiche un résumé général de la solution."""
         print(f"Distance totale: {value(self.prob.objective):.2f} km")
-        print(f"Statut: {LpStatus[self.prob.status]}")
         
         # Nombre de camions utilisés
         trucks_used = sum(1 for k in self.K 
