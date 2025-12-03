@@ -565,8 +565,12 @@ class VRPModel:
 # ============================================================================
 
 if __name__ == "__main__":
-    # Charger et résoudre l'instance FACILE
+    # Charger et résoudre l'instance 
     model = VRPModel("instances/instance_facile.json")
+    #model = VRPModel("instances/instance_moyen.json")
+    #model = VRPModel("instances/instance_difficile_1.json")
+    #model = VRPModel("instances/instance_difficile_2.json")
+    #model = VRPModel("instances/instance_difficile_3.json")
     model.load_instance()
     
     print("\n" + "="*60)
@@ -585,5 +589,5 @@ if __name__ == "__main__":
     print("RÉSOLUTION")
     print("="*60 + "\n")
     
-    model.solve(time_limit=60)
+    model.solve(time_limit=600)
     model.print_solution()
