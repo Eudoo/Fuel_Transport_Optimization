@@ -1,0 +1,82 @@
+{
+    "meta": {
+        "instance": "instances/instance_facile_1.json",
+        "date_resolution": "2025-12-05T09:11:56.823866",
+        "solveur": "CBC (PuLP)",
+        "statut": "Optimal",
+        "temps_resolution_sec": 1.28
+    },
+    "resultats": {
+        "distance_totale_km": 247.05,
+        "camions_utilises": 2,
+        "camions_disponibles": 2,
+        "charge_totale_L": 15800.0,
+        "utilisation_capacite_pct": 52.7
+    },
+    "tournees": [
+        {
+            "camion": "K1",
+            "garage_depart": "G1",
+            "depot": "D1",
+            "produit": "Gasoil",
+            "route": [
+                "G1",
+                "D1",
+                "S3_G",
+                "S4_G",
+                "S5_G",
+                "S2_G",
+                "S1_G",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S3_G",
+                "S4_G",
+                "S5_G",
+                "S2_G",
+                "S1_G"
+            ],
+            "nb_stations": 5,
+            "distance_km": 131.06,
+            "charge_L": 10164.0,
+            "capacite_camion_L": 15000,
+            "taux_remplissage_pct": 67.8
+        },
+        {
+            "camion": "K2",
+            "garage_depart": "G1",
+            "depot": "D1",
+            "produit": "Essence",
+            "route": [
+                "G1",
+                "D1",
+                "S3_E",
+                "S5_E",
+                "S2_E",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S3_E",
+                "S5_E",
+                "S2_E"
+            ],
+            "nb_stations": 3,
+            "distance_km": 115.99,
+            "charge_L": 5636.0,
+            "capacite_camion_L": 15000,
+            "taux_remplissage_pct": 37.6
+        }
+    ],
+    "statistiques_produits": {
+        "Essence": {
+            "demande_totale_L": 5636,
+            "livraison_totale_L": 5636.0,
+            "satisfaction_pct": 100.0
+        },
+        "Gasoil": {
+            "demande_totale_L": 10164,
+            "livraison_totale_L": 10164.0,
+            "satisfaction_pct": 100.0
+        }
+    }
+}

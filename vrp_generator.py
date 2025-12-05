@@ -161,15 +161,15 @@ scenarios = [
     },
     {
         "difficulty": "MOYEN",
-        "num_garages": 2, "num_depots": 2, "num_stations": 15,
+        "num_garages": 2, "num_depots": 2, "num_stations": 8,
         "min_demand": 2000, "max_demand": 5000,
         "truck_types": [15000, 20000, 25000], # Mixte
-        "truck_margin": 2,
+        "truck_margin": 1.5,
         "grid_size": 100
     },
     {
         "difficulty": "DIFFICILE",
-        "num_garages": 3, "num_depots": 3, "num_stations": 40,
+        "num_garages": 3, "num_depots": 3, "num_stations": 20,
         "min_demand": 3000, "max_demand": 8000,
         "truck_types": [20000, 25000, 30000], # Gros camions
         "truck_margin": 0, # Tendu
@@ -182,10 +182,14 @@ if __name__ == "__main__":
     
     # Génération des 5 instances demandées
     gen = VRPInstanceGenerator(scenarios[0])
-    gen.generate("instances/instance_facile.json")
+    #gen.generate("instances/instance_facile_1.json")
+    #gen.generate("instances/instance_facile_2.json")
+    #gen.generate("instances/instance_facile_3.json")
 
     gen = VRPInstanceGenerator(scenarios[1])
-    gen.generate("instances/instance_moyen.json")
+    #gen.generate("instances/instance_moyen_1.json")
+    #gen.generate("instances/instance_moyen_2.json")
+    #gen.generate("instances/instance_moyen_3.json")
     
     gen = VRPInstanceGenerator(scenarios[2])
     gen.generate("instances/instance_difficile_1.json")

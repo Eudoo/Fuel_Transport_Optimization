@@ -1,0 +1,78 @@
+{
+    "meta": {
+        "instance": "instances/instance_facile_2.json",
+        "date_resolution": "2025-12-05T09:12:13.517431",
+        "solveur": "CBC (PuLP)",
+        "statut": "Optimal",
+        "temps_resolution_sec": 0.56
+    },
+    "resultats": {
+        "distance_totale_km": 261.71,
+        "camions_utilises": 2,
+        "camions_disponibles": 2,
+        "charge_totale_L": 11605.0,
+        "utilisation_capacite_pct": 38.7
+    },
+    "tournees": [
+        {
+            "camion": "K1",
+            "garage_depart": "G1",
+            "depot": "D1",
+            "produit": "Essence",
+            "route": [
+                "G1",
+                "D1",
+                "S2_E",
+                "S3_E",
+                "S1_E",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S2_E",
+                "S3_E",
+                "S1_E"
+            ],
+            "nb_stations": 3,
+            "distance_km": 141.57,
+            "charge_L": 5872.0,
+            "capacite_camion_L": 15000,
+            "taux_remplissage_pct": 39.1
+        },
+        {
+            "camion": "K2",
+            "garage_depart": "G1",
+            "depot": "D1",
+            "produit": "Gasoil",
+            "route": [
+                "G1",
+                "D1",
+                "S5_G",
+                "S4_G",
+                "S1_G",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S5_G",
+                "S4_G",
+                "S1_G"
+            ],
+            "nb_stations": 3,
+            "distance_km": 120.14,
+            "charge_L": 5733.0,
+            "capacite_camion_L": 15000,
+            "taux_remplissage_pct": 38.2
+        }
+    ],
+    "statistiques_produits": {
+        "Essence": {
+            "demande_totale_L": 5872,
+            "livraison_totale_L": 5872.0,
+            "satisfaction_pct": 100.0
+        },
+        "Gasoil": {
+            "demande_totale_L": 5733,
+            "livraison_totale_L": 5733.0,
+            "satisfaction_pct": 100.0
+        }
+    }
+}

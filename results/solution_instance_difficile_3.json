@@ -1,0 +1,164 @@
+{
+    "meta": {
+        "instance": "instances/instance_difficile_3.json",
+        "date_resolution": "2025-12-05T10:41:09.194681",
+        "solveur": "CBC (PuLP)",
+        "statut": "Optimal",
+        "temps_resolution_sec": 900.01
+    },
+    "resultats": {
+        "distance_totale_km": 2951.94,
+        "camions_utilises": 5,
+        "camions_disponibles": 5,
+        "charge_totale_L": 132237.0,
+        "utilisation_capacite_pct": 94.5
+    },
+    "tournees": [
+        {
+            "camion": "K1",
+            "garage_depart": "G1",
+            "depot": "D1",
+            "produit": "Essence",
+            "route": [
+                "G1",
+                "D1",
+                "S12_E",
+                "S11_E",
+                "S4_E",
+                "S8_E",
+                "S17_E",
+                "S20_E",
+                "G2"
+            ],
+            "stations_visitees": [
+                "S12_E",
+                "S11_E",
+                "S4_E",
+                "S8_E",
+                "S17_E",
+                "S20_E"
+            ],
+            "nb_stations": 6,
+            "distance_km": 770.85,
+            "charge_L": 28538.0,
+            "capacite_camion_L": 30000,
+            "taux_remplissage_pct": 95.1
+        },
+        {
+            "camion": "K2",
+            "garage_depart": "G2",
+            "depot": "D2",
+            "produit": "Gasoil",
+            "route": [
+                "G2",
+                "D2",
+                "S13_G",
+                "S20_G",
+                "S15_G",
+                "S5_G",
+                "G3"
+            ],
+            "stations_visitees": [
+                "S13_G",
+                "S20_G",
+                "S15_G",
+                "S5_G"
+            ],
+            "nb_stations": 4,
+            "distance_km": 618.7,
+            "charge_L": 26467.0,
+            "capacite_camion_L": 30000,
+            "taux_remplissage_pct": 88.2
+        },
+        {
+            "camion": "K3",
+            "garage_depart": "G3",
+            "depot": "D1",
+            "produit": "Gasoil",
+            "route": [
+                "G3",
+                "D1",
+                "S2_G",
+                "S7_G",
+                "S9_G",
+                "S18_G",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S2_G",
+                "S7_G",
+                "S9_G",
+                "S18_G"
+            ],
+            "nb_stations": 4,
+            "distance_km": 530.44,
+            "charge_L": 24517.0,
+            "capacite_camion_L": 25000,
+            "taux_remplissage_pct": 98.1
+        },
+        {
+            "camion": "K4",
+            "garage_depart": "G1",
+            "depot": "D3",
+            "produit": "Essence",
+            "route": [
+                "G1",
+                "D3",
+                "S6_E",
+                "S14_E",
+                "S7_E",
+                "S10_E",
+                "G1"
+            ],
+            "stations_visitees": [
+                "S6_E",
+                "S14_E",
+                "S7_E",
+                "S10_E"
+            ],
+            "nb_stations": 4,
+            "distance_km": 460.78,
+            "charge_L": 24722.0,
+            "capacite_camion_L": 25000,
+            "taux_remplissage_pct": 98.9
+        },
+        {
+            "camion": "K5",
+            "garage_depart": "G2",
+            "depot": "D3",
+            "produit": "Gasoil",
+            "route": [
+                "G2",
+                "D3",
+                "S1_G",
+                "S19_G",
+                "S3_G",
+                "S16_G",
+                "G3"
+            ],
+            "stations_visitees": [
+                "S1_G",
+                "S19_G",
+                "S3_G",
+                "S16_G"
+            ],
+            "nb_stations": 4,
+            "distance_km": 571.17,
+            "charge_L": 27993.0,
+            "capacite_camion_L": 30000,
+            "taux_remplissage_pct": 93.3
+        }
+    ],
+    "statistiques_produits": {
+        "Essence": {
+            "demande_totale_L": 53260,
+            "livraison_totale_L": 53260.0,
+            "satisfaction_pct": 100.0
+        },
+        "Gasoil": {
+            "demande_totale_L": 78977,
+            "livraison_totale_L": 78977.0,
+            "satisfaction_pct": 100.0
+        }
+    }
+}

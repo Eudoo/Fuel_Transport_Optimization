@@ -1,6 +1,8 @@
 import json
 import math
 import time as time_module
+import os
+from datetime import datetime
 from pulp import *
 from pathlib import Path
 
@@ -559,6 +561,149 @@ class VRPModel:
         print("FIN DE LA SOLUTION")
         print("="*60 + "\n")
 
+    def save_solution(self, output_dir="results"):
+        """
+        Sauvegarde la solution dans un fichier JSON.
+        
+        Args:
+            output_dir (str): Dossier de destination pour les résultats
+        
+        Returns:
+            str: Chemin du fichier sauvegardé
+        """
+        # Créer le dossier si nécessaire
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        # Extraire le nom de l'instance
+        instance_name = Path(self.instance_file).stem
+        
+        # Générer un nom de fichier simple (sans horodatage)
+        filename = f"{output_dir}/solution_{instance_name}.json"
+        
+        # Construire les données de la solution
+        solution_data = {
+            "meta": {
+                "instance": self.instance_file,
+                "date_resolution": datetime.now().isoformat(),
+                "solveur": "CBC (PuLP)",
+                "statut": LpStatus[self.prob.status],
+                "temps_resolution_sec": round(self.solve_time, 2),
+            },
+            "resultats": {
+                "distance_totale_km": round(value(self.prob.objective), 2),
+                "camions_utilises": 0,
+                "camions_disponibles": len(self.K),
+                "charge_totale_L": 0,
+                "utilisation_capacite_pct": 0,
+            },
+            "tournees": []
+        }
+        
+        # Extraire les tournées de chaque camion
+        total_load = 0
+        trucks_used = 0
+        
+        for k in self.K:
+            # Collecter les arcs de ce camion
+            arcs = {}
+            for i in self.V:
+                for j in self.V:
+                    if i != j:
+                        val = value(self.x[(i, j, k)])
+                        if val and val > 0.5:
+                            arcs[i] = j
+            
+            if not arcs:
+                continue  # Camion non utilisé
+            
+            trucks_used += 1
+            
+            # Construire la route
+            start = self.start_k.get(k)
+            route = []
+            if start and start in arcs:
+                route = [start]
+                current = start
+                
+                while current in arcs:
+                    next_node = arcs[current]
+                    route.append(next_node)
+                    current = next_node
+                    if current in self.G or len(route) > len(self.V) + 2:
+                        break
+            
+            # Calculer la distance de la tournée
+            distance = sum(self.d.get((route[i], route[i+1]), 0) for i in range(len(route)-1))
+            
+            # Identifier le dépôt utilisé
+            depot_utilise = None
+            for d in self.D:
+                if value(self.y[(k, d)]) and value(self.y[(k, d)]) > 0.5:
+                    depot_utilise = d
+                    break
+            
+            # Identifier le produit transporté
+            produit = None
+            charge = 0
+            for p in self.P:
+                if value(self.z[(k, p)]) and value(self.z[(k, p)]) > 0.5:
+                    produit = p
+                    charge = sum(value(self.L[(k, d, p)]) for d in self.D)
+                    total_load += charge
+                    break
+            
+            # Stations visitées
+            stations = [n for n in route if n in self.S]
+            
+            # Ajouter la tournée
+            tournee = {
+                "camion": k,
+                "garage_depart": self.start_k.get(k),
+                "depot": depot_utilise,
+                "produit": produit,
+                "route": route,
+                "stations_visitees": stations,
+                "nb_stations": len(stations),
+                "distance_km": round(distance, 2),
+                "charge_L": round(charge, 0),
+                "capacite_camion_L": self.Q.get(k, 0),
+                "taux_remplissage_pct": round((charge / self.Q.get(k, 1)) * 100, 1)
+            }
+            solution_data["tournees"].append(tournee)
+        
+        # Mettre à jour les statistiques globales
+        solution_data["resultats"]["camions_utilises"] = trucks_used
+        solution_data["resultats"]["charge_totale_L"] = round(total_load, 0)
+        
+        total_capacity = sum(self.Q.get(k, 0) for k in self.K)
+        if total_capacity > 0:
+            solution_data["resultats"]["utilisation_capacite_pct"] = round(
+                (total_load / total_capacity) * 100, 1
+            )
+        
+        # Ajouter les statistiques par produit
+        stats_produits = {}
+        for p in self.P:
+            demande_p = sum(self.q.get(s, 0) for s in self.S if self.type_i.get(s) == p)
+            livraison_p = sum(
+                sum(value(self.L[(k, d, p)]) for d in self.D)
+                for k in self.K
+            )
+            stats_produits[p] = {
+                "demande_totale_L": demande_p,
+                "livraison_totale_L": round(livraison_p, 0),
+                "satisfaction_pct": round((livraison_p / demande_p) * 100, 1) if demande_p > 0 else 0
+            }
+        solution_data["statistiques_produits"] = stats_produits
+        
+        # Sauvegarder le fichier JSON
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(solution_data, f, indent=4, ensure_ascii=False)
+        
+        print(f"[OK] Solution sauvegardée: {filename}")
+        return filename
+
 
 # ============================================================================
 # MAIN
@@ -566,11 +711,9 @@ class VRPModel:
 
 if __name__ == "__main__":
     # Charger et résoudre l'instance 
-    model = VRPModel("instances/instance_facile.json")
-    #model = VRPModel("instances/instance_moyen.json")
-    #model = VRPModel("instances/instance_difficile_1.json")
-    #model = VRPModel("instances/instance_difficile_2.json")
-    #model = VRPModel("instances/instance_difficile_3.json")
+    #model = VRPModel("instances/instance_facile_3.json")
+    #model = VRPModel("instances/instance_moyen_1.json")
+    model = VRPModel("instances/instance_difficile_3.json")
     model.load_instance()
     
     print("\n" + "="*60)
@@ -589,5 +732,9 @@ if __name__ == "__main__":
     print("RÉSOLUTION")
     print("="*60 + "\n")
     
-    model.solve(time_limit=600)
+    model.solve(time_limit=900)
     model.print_solution()
+    
+    # Sauvegarder la solution si elle est optimale ou réalisable
+    if model.prob.status in [LpStatusOptimal, 1]:  # Optimal
+        model.save_solution("results")
