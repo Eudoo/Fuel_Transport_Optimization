@@ -149,7 +149,7 @@ Un camion ne peut pas aller directement du garage à une station (il doit charge
 
 $$x_{(start_k)jk} = 0 \quad \forall j \in S, \forall k \in K$$
 
-#### 3.2.6 Lien Utilisation Dépôt et Sortie du Garage (NEW) 🆕
+#### 3.2.6 Lien Utilisation Dépôt et Sortie du Garage (NEW)
 
 Si un camion utilise un dépôt, il doit obligatoirement sortir de son garage.
 
@@ -157,7 +157,7 @@ $$y_{kd} \le \sum_{j \in V, j \ne start_k} x_{(start_k)jk} \quad \forall k \in K
 
 *(Cette contrainte empêche un camion d'utiliser un dépôt sans avoir quitté son garage)*
 
-#### 3.2.7 Passage Obligatoire Garage → Dépôt (NEW) 🆕
+#### 3.2.7 Passage Obligatoire Garage → Dépôt (NEW) 
 
 Si un camion utilise un dépôt $d$, il doit y arriver directement depuis son garage de départ.
 
